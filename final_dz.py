@@ -23,23 +23,19 @@ import os
 import urllib.parse
 
 
-# Путь к файлу с данными
 DATA_FILE = "tasks.txt"
 
-# Список задач
 tasks = []
 
-# Загрузка данных из файла или создание нового файла
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as file:
         tasks = json.load(file)
 else:
     with open(DATA_FILE, "w") as file:
-        json.dump([], file)  # Создаем пустой JSON-список в файле
+        json.dump([], file)
 
 
 def save_tasks():
-    """Сохраняет текущий список задач в файл."""
     with open(DATA_FILE, "w") as file:
         json.dump(tasks, file)
 
