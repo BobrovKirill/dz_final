@@ -23,24 +23,30 @@ import os
 import urllib.parse
 
 
-DATA_FILE = "tasks.txt"
+STORAGE_FILE_NAME = "tasks.txt"
 
-tasks = []
+current_tasks = []
 
-if os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "r") as file:
-        tasks = json.load(file)
+if os.path.exists(STORAGE_FILE_NAME):
+    with open(STORAGE_FILE_NAME, "r") as file:
+        current_tasks = json.load(file)
 else:
-    with open(DATA_FILE, "w") as file:
+    with open(STORAGE_FILE_NAME, "w") as file:
         json.dump([], file)
 
 
 def save_tasks():
-    with open(DATA_FILE, "w") as file:
-        json.dump(tasks, file)
+    with open(STORAGE_FILE_NAME, "w") as file:
+        json.dump(current_tasks, file)
 
 
 class ToDoHandler(BaseHTTPRequestHandler):
+    def __response_data(self, status_code = 200, head = None):
+        self.send_response(status_code)
+        if head:
+            self.send_header(head['key'], head['value'])
+        self.end_headers()
+
     def do_GET(self):
         def render_form():
             return """
@@ -67,9 +73,7 @@ class ToDoHandler(BaseHTTPRequestHandler):
             """
 
         if self.path == "/tasks":
-            self.send_response(200)
-            self.send_header("Content-type", "text/html;charset=utf-8")
-            self.end_headers()
+            self.__response_data(200, {'key': 'Content-type', 'value': 'text/html;charset=utf-8'})
             self.wfile.write("""
                         <html>
                             <head>
@@ -88,11 +92,10 @@ class ToDoHandler(BaseHTTPRequestHandler):
                         </html>
                     """.format(
                             form=render_form(),
-                            tasks="\n".join(map(render_html, tasks))
+                            tasks="\n".join(map(render_html, current_tasks))
                         ).encode('utf-8'))
         else:
-            self.send_response(404)
-            self.end_headers()
+            self.__response_data(404)
 
     def do_POST(self):
         if self.path == "/tasks":
@@ -108,49 +111,44 @@ class ToDoHandler(BaseHTTPRequestHandler):
                     raise ValueError("Invalid data")
 
                 new_task = {
-                    "id": len(tasks) + 1,
+                    "id": len(current_tasks) + 1,
                     "title": title,
                     "priority": priority,
                     "isDone": False,
                 }
-                tasks.append(new_task)
-                print(tasks)
+                current_tasks.append(new_task)
                 save_tasks()
 
-                self.send_response(302)
-                self.send_header("Location", "/tasks")
-                self.end_headers()
+                self.__response_data(302, {'key': 'Location', 'value': '/tasks'})
             except (ValueError, json.JSONDecodeError):
-                self.send_response(400)
-                self.end_headers()
+                self.__response_data(400)
 
         elif self.path.startswith("/tasks/"):
             is_status =  True if self.path.endswith("/complete") else False
             try:
                 task_id = int(self.path.split("/")[2])
-                task = next((task for task in tasks if task["id"] == task_id), None)
+                task = next((task for task in current_tasks if task["id"] == task_id), None)
                 if not task:
-                    self.send_response(404)
-                    self.end_headers()
+                    self.__response_data(404)
                     return
 
                 task["isDone"] = is_status
                 save_tasks()
-                self.send_response(200)
-                self.end_headers()
+                self.__response_data(200)
             except ValueError:
-                self.send_response(400)
-                self.end_headers()
+                self.__response_data(400)
         else:
-            self.send_response(404)
-            self.end_headers()
+            self.__response_data(404)
 
 
 def run(server_class=HTTPServer, handler_class=ToDoHandler, port=8008):
     server_address = ("", port)
     httpd = server_class(server_address, handler_class)
     print(f"Starting server on port {port}...")
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        httpd.server_close()
 
 
 if __name__ == "__main__":
