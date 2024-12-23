@@ -103,7 +103,6 @@ class ToDoHandler(BaseHTTPRequestHandler):
             body = self.rfile.read(content_length)
             try:
                 data = urllib.parse.parse_qs(body.decode('utf-8'))
-                print(data)
                 title = data.get("title", [None])[0]
                 priority = data.get("priority", [None])[0]
 
